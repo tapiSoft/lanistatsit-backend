@@ -1,0 +1,7 @@
+[package]
+authors = ["Antti Keränen <detegr@gmail.com>"]
+name = "lanistatsit-backend"
+version = "0.1.0"
+
+[dependencies]
+rustful = "0.9.0"
