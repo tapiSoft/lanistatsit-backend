@@ -1,7 +1,15 @@
 #[macro_use]
 extern crate rustful;
+extern crate rustc_serialize;
+
 use rustful::{Server, Handler, Context, Response, TreeRouter};
 use std::sync::{Arc, Mutex};
+use rustc_serialize::json;
+
+#[derive(RustcEncodable)]
+struct DumbResponse {
+    value: usize,
+}
 
 struct DumbHandler {
     value: Arc<Mutex<usize>>,
@@ -19,7 +27,7 @@ impl Handler for DumbHandler {
             *value_container = val + 1;
             val
         };
-        let json_formatted = format!(r#"{{"value": {}}}"#, val);
+        let json_formatted = json::encode(&DumbResponse { value: val }).unwrap();
         resp.send(json_formatted);
     }
 }
