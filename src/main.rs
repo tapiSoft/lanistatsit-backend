@@ -1,16 +1,22 @@
 #![cfg_attr(feature = "clippy", feature(plugin))]
 #![cfg_attr(feature = "clippy", plugin(clippy))]
+#![cfg_attr(feature = "postgres_macros", feature(plugin))]
+#![cfg_attr(feature = "postgres_macros", plugin(postgres_macros))]
 
+extern crate postgres;
+extern crate r2d2;
+extern crate r2d2_postgres;
+extern crate rand;
+extern crate rustc_serialize;
 #[macro_use]
 extern crate rustful;
-extern crate rustc_serialize;
-extern crate rand;
 
+use r2d2_postgres::{SslMode, PostgresConnectionManager};
 use rand::Rng;
-use rustc_serialize::json;
 use rustc_serialize::Encodable;
-use rustful::{Server, Handler, Context, Response, TreeRouter};
+use rustc_serialize::json;
 use rustful::header::AccessControlAllowOrigin;
+use rustful::{Server, Handler, Context, Response, TreeRouter};
 
 #[derive(RustcEncodable)]
 struct HeroStat {
@@ -39,16 +45,32 @@ fn get_hero_stats() -> Vec<HeroStat> {
     }
     ret
 }
+fn get_connection(ctx: &Context) -> r2d2::PooledConnection<PostgresConnectionManager> {
+    // TODO: Error handling
+    ctx.global
+        .get::<r2d2::Pool<r2d2_postgres::PostgresConnectionManager>>()
+        .unwrap()
+        .get()
+        .unwrap()
+}
 struct StatHandler;
 impl Handler for StatHandler {
-    fn handle_request(&self, _ctx: Context, mut resp: Response) {
+    fn handle_request(&self, ctx: Context, mut resp: Response) {
         let stats = get_hero_stats();
+        let conn = get_connection(&ctx);
+        let query = sql!("select * from heroes");
+        let results = conn.query(query, &[]);
+        println!("{:?}", results);
         let json_formatted = json::encode(&JSONWrapper(stats)).unwrap();
         resp.headers_mut().set(AccessControlAllowOrigin::Value("*".into()));
         resp.send(json_formatted);
     }
 }
 fn main() {
+    let manager = PostgresConnectionManager::new("postgres://postgres@localhost/lanistatsit",
+                                                 SslMode::None)
+        .unwrap();
+    let pool = r2d2::Pool::new(r2d2::Config::default(), manager).unwrap();
     let routes = insert_routes! {
         TreeRouter::new() => {
             "stats" => {
@@ -59,6 +81,7 @@ fn main() {
     let server = Server {
         handlers: routes,
         host: 8080.into(),
+        global: Box::new(pool).into(),
         content_type: "application/json".parse().unwrap(),
         ..Server::default()
     };
