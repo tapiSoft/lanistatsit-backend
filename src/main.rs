@@ -1,41 +1,55 @@
 #[macro_use]
 extern crate rustful;
 extern crate rustc_serialize;
+extern crate rand;
 
-use rustful::{Server, Handler, Context, Response, TreeRouter};
-use std::sync::{Arc, Mutex};
+use rand::Rng;
 use rustc_serialize::json;
+use rustc_serialize::Encodable;
+use rustful::{Server, Handler, Context, Response, TreeRouter};
+use rustful::header::AccessControlAllowOrigin;
 
 #[derive(RustcEncodable)]
-struct DumbResponse {
-    value: usize,
+struct HeroStat {
+    name: String,
+    wins: usize,
+    losses: usize,
 }
+#[derive(RustcEncodable)]
+struct JSONWrapper<T>(T) where T: Encodable;
 
-struct DumbHandler {
-    value: Arc<Mutex<usize>>,
-}
-impl DumbHandler {
-    fn new() -> DumbHandler {
-        DumbHandler { value: Arc::new(Mutex::new(1)) }
+impl HeroStat {
+    fn new_random(rng: &mut rand::ThreadRng, hero_num: usize) -> HeroStat {
+        HeroStat {
+            name: format!("Hero {}", hero_num),
+            wins: rng.gen_range(0, 100),
+            losses: rng.gen_range(0, 100),
+        }
     }
 }
-impl Handler for DumbHandler {
-    fn handle_request(&self, _ctx: Context, resp: Response) {
-        let val = {
-            let mut value_container = self.value.lock().unwrap();
-            let val = *value_container;
-            *value_container = val + 1;
-            val
-        };
-        let json_formatted = json::encode(&DumbResponse { value: val }).unwrap();
+fn get_hero_stats() -> Vec<HeroStat> {
+    let mut rng = rand::thread_rng();
+    let num_of_heroes = rng.gen_range(5, 25);
+    let mut ret = vec![];
+    for hero_num in 1..num_of_heroes {
+        ret.push(HeroStat::new_random(&mut rng, hero_num));
+    }
+    ret
+}
+struct StatHandler;
+impl Handler for StatHandler {
+    fn handle_request(&self, _ctx: Context, mut resp: Response) {
+        let stats = get_hero_stats();
+        let json_formatted = json::encode(&JSONWrapper(stats)).unwrap();
+        resp.headers_mut().set(AccessControlAllowOrigin::Value("*".into()));
         resp.send(json_formatted);
     }
 }
 fn main() {
     let routes = insert_routes! {
         TreeRouter::new() => {
-            "test" => {
-                Get: DumbHandler::new(),
+            "stats" => {
+                Get: StatHandler,
             }
         }
     };
