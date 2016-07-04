@@ -3,6 +3,9 @@
 #![cfg_attr(feature = "postgres_macros", feature(plugin))]
 #![cfg_attr(feature = "postgres_macros", plugin(postgres_macros))]
 
+#[cfg(not(feature = "postgres"))]
+macro_rules! sql { ($s:expr) => {$s} }
+
 extern crate postgres;
 extern crate r2d2;
 extern crate r2d2_postgres;
