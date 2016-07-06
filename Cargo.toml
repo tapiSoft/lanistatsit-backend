@@ -16,8 +16,8 @@ optional = true
 version = "*"
 
 [dependencies.postgres_macros]
+git = "https://github.com/sfackler/rust-postgres-macros"
 optional = true
-version = "0.1"
 
 [features]
 default = ["clippy", "postgres_macros"]
