@@ -6,6 +6,7 @@
 #[cfg(not(feature = "postgres"))]
 macro_rules! sql { ($s:expr) => {$s} }
 
+
 extern crate postgres;
 extern crate r2d2;
 extern crate r2d2_postgres;
@@ -35,11 +36,13 @@ fn send_response(mut response: Response, data: &str) {
     response.send(data);
 }
 
+#[allow(useless_attribute)] // Rustful causes this clippy lint to trigger, so allow
 fn main() {
     let manager = PostgresConnectionManager::new("postgres://postgres@localhost/lanistatsit",
                                                  SslMode::None)
         .unwrap();
     let pool = r2d2::Pool::new(r2d2::Config::default(), manager).unwrap();
+
     let routes = insert_routes! {
         TreeRouter::new() => {
             "stats" => {
