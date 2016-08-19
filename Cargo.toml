@@ -16,7 +16,7 @@ optional = true
 version = "*"
 
 [dependencies.postgres_macros]
-git = "https://github.com/sfackler/rust-postgres-macros"
+version = "0.1"
 optional = true
 
 [features]
